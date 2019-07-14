@@ -6,19 +6,20 @@ import java.net.InetAddress;
 public class UDPClient {
 	
 	// instantiate constants
-	private final int PACKET_PORT = 2201;
 	private final int ACK_PORT = 9587;
-	private final int BUFFER_SIZE = 16;
-	private final String HOSTNAME = "localhost";
 	
 	// declare instance variables
+	private int receiverPort;
+	private int bufferSize;
+	private int timeoutLength;
+	private float percentBadPackets;
 	private DatagramSocket packetSocket;
 	private DatagramSocket ackSocket;
 	private InetAddress address;
 	private byte[] buf;
 	
 	// class constructor
-	public UDPClient() {
+	public UDPClient(String address, int portNum, int bufSize, int timeout, float badPackets) {
 		try {
 			
 			// open socket used to send packets
@@ -28,7 +29,15 @@ public class UDPClient {
 			// (socket to receive does need port as parameter)
 			this.ackSocket = new DatagramSocket(ACK_PORT);
 			// specify host's IP address
-			this.address = InetAddress.getByName(HOSTNAME);
+			this.address = InetAddress.getByName(address);
+			// specify the port number for receiver to find packets in
+			this.receiverPort = portNum;
+			// specify buffer/packet size
+			this.bufferSize = bufSize;
+			// specify how long before client re-sends packet
+			this.timeoutLength = timeout;
+			// specify percentage of packets to corrupt, delay, or drop
+			this.percentBadPackets = badPackets;
 			
 		}catch(IOException e) {
 			e.printStackTrace();
@@ -44,13 +53,13 @@ public class UDPClient {
 			
 			// open file input stream with file to be read into buffer
 			InputStream iStream = new BufferedInputStream(new FileInputStream(file));
-			buf = new byte[BUFFER_SIZE];		// initialize buffer array for data to be read to
+			buf = new byte[bufferSize];		// initialize buffer array for data to be read to
 			
 			// pre-test reads file from input stream and writes BUFFER_SIZE number of bytes to buffer to be sent in packets
 			while(iStream.read(buf) != -1) {
 				
 				// create new packet each iteration to be sent with(packet data, packet length, destination address, destination port)
-				DatagramPacket dgPacket = new DatagramPacket(buf, buf.length, address, PACKET_PORT);
+				DatagramPacket dgPacket = new DatagramPacket(buf, buf.length, address, receiverPort);
 				// send packet via open socket
 				packetSocket.send(dgPacket);
 				
@@ -60,14 +69,14 @@ public class UDPClient {
 				}
 				
 				// output format [packet #][start byte offset][end byte offset]
-				System.out.println(String.format("[%d][%d][%d]", numPackets, numPackets * BUFFER_SIZE, numPackets * BUFFER_SIZE + buf.length));
+				System.out.println(String.format("[%d][%d][%d]", numPackets, numPackets * bufferSize, numPackets * bufferSize + buf.length));
 				
 				numPackets++;		//increment packet counter
 			}
 			
 			// send termination code
 			buf = "stop".getBytes();
-			DatagramPacket dgPacket = new DatagramPacket(buf, buf.length, address, PACKET_PORT);
+			DatagramPacket dgPacket = new DatagramPacket(buf, buf.length, address, receiverPort);
 			packetSocket.send(dgPacket);
 			
 			// close the open socket and the input stream
@@ -102,6 +111,7 @@ public class UDPClient {
 		return false;
 	}
 	
+	/**
 	public static void main(String[] args) {
 		
 		// make sure that a file(parameter) has been passed
@@ -114,6 +124,6 @@ public class UDPClient {
 		UDPClient client = new UDPClient();		// create client object
 		client.send(args[0]);					// begin process of sending file
 		
-	}
+	}*/
 	
 }

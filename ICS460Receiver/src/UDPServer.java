@@ -6,17 +6,16 @@ import java.net.InetAddress;
 public class UDPServer {
 	
 	// instantiate constants
-	private final int PACKET_PORT = 2201;
 	private final int ACK_PORT = 9587;
 	private final int BUFFER_SIZE = 16;
 	
 	// added for ack testing
 	private final byte[] ACK = "ack".getBytes();
-	private final String HOSTNAME = "localhost";
 	
 	// declare instance variables
 	private byte[] buf;
 	private boolean running;
+	private int receiverPort;
 	private DatagramSocket packetSocket;
 	private DatagramSocket ackSocket;
 	
@@ -24,17 +23,19 @@ public class UDPServer {
 	private InetAddress address;
 	
 	// class constructor
-	public UDPServer() {
+	public UDPServer(String address, int portNum, float badPackets) {
 		try {
 			
 			// open socket to receive packets
 			// (socket to receive does need port as parameter)
-			this.packetSocket = new DatagramSocket(PACKET_PORT);
+			this.packetSocket = new DatagramSocket(portNum);
 			// open socket used to receive acknowledgments\
 			// (socket to send doesn't need port as parameter)
 			this.ackSocket = new DatagramSocket();
 			// specify host's IP address
-			this.address = InetAddress.getByName(HOSTNAME);
+			this.address = InetAddress.getByName(address);
+			// specify the port number for receiver to find packets in
+			this.receiverPort = portNum;
 			
 		}catch(IOException e) {
 			e.printStackTrace();
@@ -153,13 +154,14 @@ public class UDPServer {
 		}
 		
 	}
-			
+	
+	/**
 	public static void main(String[] args) {
 		
 		// create UDPServer object to open socket(port)
 		new UDPServer().receive();
 		
-		/** put in own method outside of main()!
+		put in own method outside of main()!
 		int numPackets = 0;		// packet counter
 		running = true;			// keeps program running until file has been fully sent
 		
@@ -225,8 +227,8 @@ public class UDPServer {
 			byteOStream.close();
 		}catch(IOException e) {
 			e.printStackTrace();
-		}*/
+		}
 		
-	}
+	}*/
 	
 }
