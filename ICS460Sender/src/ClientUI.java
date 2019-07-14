@@ -5,23 +5,17 @@ public class ClientUI {
 		
 	public static void main(String[] args) {
 		
-		final String
+		final String SIZE_KEY = args[0];
+		final int SIZE = Integer.parseInt(args[1]);
+		final String TIMEOUT_KEY = args[2];
+		final int TIMEOUT = Integer.parseInt(args[3]);
+		final String PERCENTAGE_KEY = args[4];
+		final float PERCENTAGE = Float.parseFloat(args[5]);
 		
-		boolean running = true;
-		// Using Scanner for Getting Input from User 
-        Scanner in = new Scanner(System.in);
-		
-		while(running) {
-			
-	        // get input from user
-	        String sizeInput = in.next(SIZE_INPUT_CHECK);
-	        String timeoutInput = in.next(TIMEOUT_INPUT_CHECK);
-	        String percentageInput = in.next(PERCENTAGE_INPUT_CHECK);
-	        while(in.hasNext()) {
-	        	s = s + in.nextByte(); 
-	        }
-	        System.out.println(s);
-		}
+		// just to test to make sure arguments are being passed through cmd correctly
+    	System.out.println("size(" + SIZE_KEY + "): " + SIZE + 
+    					   "\ntimeout(" + TIMEOUT_KEY + "): " + TIMEOUT + 
+    					   "\npercentage(" + PERCENTAGE_KEY + "): " + PERCENTAGE);
 		
 	}
 
