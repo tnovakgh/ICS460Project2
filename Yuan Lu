@@ -1,0 +1,98 @@
+//Writer: Yuan Lu
+//sender file
+
+import java.io.*;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+
+public class Sender {
+    static int akno=0;
+    static int seqno=0;
+    static byte[] sendData = new byte[1024];
+    //variable for sending FirstMessage
+    static String sendFirstMessage = "SENDing ";
+    //variable for resending message
+    static String resendMessage = "ReSend. ";
+    //variable for message sent
+    static String SENT = "SENT";
+    //variable when message drop
+    static String DROP = "DROP";
+    //variable for error
+    static String ERR= "ERR";
+    //variable for acknowledgment received
+    static String ackRcvd = "AckRcvd";
+    //variable for duplicate acknowledgement
+    static String duplAck = "DuplAck";
+    //variable for error in acknowledgement
+    static String errAck = "ErrAck";
+    //variable for Move Window
+    static String moveWnd = "MoveWnd";
+    //variable for Time Out
+    static String timeout = "TimeOut";
+
+
+    // sequence number of datagram (integer, [0,(size of file)/(size of packet)]
+
+    public static void main(String[] args) throws IOException {
+        String filePath;
+        if (args.length > 0) {
+            filePath = args[0];
+        } else {
+            filePath = "input.jpg";
+        }
+		//Get file from the path
+        File getFile = new File(filePath);
+		//Buffered Input Stream to inout file
+        BufferedInputStream bIStream = null;
+		//Make a null datagram socket
+        DatagramSocket dgSocket = null;
+        try {
+			//Initiate a datagram socket
+            dgSocket = new DatagramSocket();
+			//Packet Size
+            int sizeOfPacket = 1024;
+			//Extra Data Off Set
+            int extraDataOffset = sizeOfPacket / 16;
+			//Total Bytes
+            long totalBytes = 0;
+
+			//Number Of Packets
+            int totalPackets = (int)Math.ceil( getFile.length() / (sizeOfPacket - extraDataOffset)); // - packet overhead
+			//Initialize buffered input stream with file stream
+            bIStream = new BufferedInputStream(new FileInputStream(getFile));
+            for (int i = 0; i < totalPackets+1; i++) {
+				//Making a byte array
+                byte[] byteArray = new byte[sizeOfPacket];
+				//read in buffered inout stream
+                bIStream.read(byteArray, 0, byteArray.length);
+				//Total butes
+                totalBytes += byteArray.length;
+				//Send first message
+                System.out.println( sendFirstMessage + (i + 1) + " " +
+                        String.format("%d",(totalBytes - sizeOfPacket)) +
+                        ":" + String.format("%d",totalBytes) + " " +
+                        String.format("%d",System.currentTimeMillis()) + " " + SENT );
+				//add data to datagram packet		
+                DatagramPacket datagramPacket = new DatagramPacket(byteArray, byteArray.length, InetAddress.getByName("127.0.0.1"), 4000);
+                //sending datagram packet
+                dgSocket.send(datagramPacket);
+                try {
+                    Thread.sleep(1L);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+                System.out.println(ackRcvd +  " " + (i + 1) + " " + moveWnd);
+            }
+        } finally {
+            if (bIStream != null)
+                bIStream.close();
+                //Buffered Input Stream closes
+            if (dgSocket != null)
+                dgSocket.close();
+                //Datagram Socket closes
+        }
+
+    }
+}
