@@ -1,4 +1,4 @@
-// sender 2 in git ** works properly **  **TEST COMMITT **
+// sender 2 in git ** works properly **  **TEST COMMITT added **
 
 import java.io.*;
 import java.net.DatagramPacket;
