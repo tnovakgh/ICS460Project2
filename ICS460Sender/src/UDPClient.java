@@ -1,14 +1,14 @@
+// sender 2 in git ** works properly **
+
 import java.io.*;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Random; 
 
 public class UDPClient {
-	
-	// instantiate constants
-	private final int ACK_PORT = 9587;
 	
 	// Yuan
 	// output string constants
@@ -22,7 +22,11 @@ public class UDPClient {
 	private final String ERR_ACK = "ErrAck";
 	private final String MOVE_WINDOW = "MoveWnd";
 	private final String TIMEOUT = "TimeOut";
-    
+	
+	// instantiate constants
+	private final int ACK_PORT = 9587;
+	private final int HEADER_SIZE = 12;
+	
 	// declare instance variables
 	private int receiverPort;
 	private int bufferSize;
@@ -31,22 +35,20 @@ public class UDPClient {
 	private DatagramSocket packetSocket;
 	private DatagramSocket ackSocket;
 	private InetAddress address;
-	private byte[] packet;
+	private byte[] buf;
 	
-	// instance variables for data packet
+	private byte[] fileBuffer;		// used for file data
+	private byte[] stopBuffer;		// used for stop message
+	private byte[] ackBuffer;		// used for ack packet
+	private byte[] headerBuffer;	// used for header data
+	
+	private byte[] packetBuffer;	// used for entire packet
+	
+	
 	private short chksum = 0;
-	byte[] chksumBytes = new byte[2];
-	private ByteBuffer chksumBuf = ByteBuffer.wrap(chksumBytes);
-	private short len = 12;
-	//private byte[] lenBytes = new byte[2];
-	//private ByteBuffer lenBuf = ByteBuffer.wrap(lenBytes);
-	private int ackNum = 1;
-	byte[] ackNumBytes = new byte[4];
-	private ByteBuffer ackNumBuf = ByteBuffer.wrap(ackNumBytes);
-	private int seqNum = 1;
-	byte[] seqNumBytes = new byte[4];
-	private ByteBuffer seqNumBuf = ByteBuffer.wrap(seqNumBytes);
-	private byte[] data;
+	private short len = HEADER_SIZE;
+	private int ackno = 1;
+	private int seqno = 1;
 	
 	// class constructor
 	public UDPClient(String address, int portNum, int bufSize, int timeout, float badPackets) {
@@ -67,11 +69,7 @@ public class UDPClient {
 			// specify how long before client re-sends packet
 			this.timeoutLength = timeout;
 			// specify percentage of packets to corrupt, delay, or drop
-			this.percentBadPackets = badPackets * 100;
-			// set packet len
-			//this.len = (short)(12 + bufSize);
-			
-			this.packet = new byte[(len+bufSize)];
+			this.percentBadPackets = badPackets;
 			
 		}catch(IOException e) {
 			e.printStackTrace();
@@ -87,19 +85,25 @@ public class UDPClient {
 			
 			// open file input stream with file to be read into buffer
 			InputStream iStream = new BufferedInputStream(new FileInputStream(file));
-			data = new byte[bufferSize];		// initialize buffer array for data to be read to
+			buf = new byte[bufferSize];		// initialize buffer array for data to be read to
+			fileBuffer = new byte[bufferSize];		// initialize buffer array for data to be read to
+			stopBuffer = new byte[bufferSize];		// initialize buffer array for stop message
+			ackBuffer = new byte[bufferSize];		// initialize buffer array for ack data
+			headerBuffer = new byte[HEADER_SIZE];	// initialize buffer array for header data
+			
+			packetBuffer = new byte[headerBuffer.length + fileBuffer.length];	// add + HEADER_SIZE
+			
 			
 			// pre-test reads file from input stream and writes BUFFER_SIZE number of bytes to buffer to be sent in packets
-			while(iStream.read(data) != -1) {
+			while(iStream.read(fileBuffer) != -1) {
 				
-				// Yuan
 				// decides if packet is corrupt, delayed, dropped, etc?
 				Random rng = new Random();
 				int chance = rng.nextInt((int)(100));
-				//
+				
 				// corrupt packet
 				if(chance < percentBadPackets && chance % 2 == 0) {
-					//chksum = 1;
+					//chksum = 1;		// 1 = bad packet
 				}
 				// drop packet
 				else if(chance < percentBadPackets && chance % 3 == 0) {
@@ -110,11 +114,20 @@ public class UDPClient {
 					
 				}
 				
-				// create the byte array to write in to the packet
-				createPacket(chksum, ackNum, seqNum, data);
+				headerBuffer = createHeader();
+				
+				addHeader();
+				// for testing
+				System.out.println(Arrays.toString(packetBuffer));
 				
 				// create new packet each iteration to be sent with(packet data, packet length, destination address, destination port)
-				DatagramPacket dgPacket = new DatagramPacket(packet, packet.length, address, receiverPort);
+				DatagramPacket dgPacket = new DatagramPacket(packetBuffer, packetBuffer.length, address, receiverPort);
+				
+				/**		**this works, but trying to add and send header as well**
+				// create new packet each iteration to be sent with(packet data, packet length, destination address, destination port)
+				DatagramPacket dgPacket = new DatagramPacket(fileBuffer, fileBuffer.length, address, receiverPort);
+				*/
+				
 				// send packet via open socket
 				packetSocket.send(dgPacket);
 				
@@ -124,16 +137,17 @@ public class UDPClient {
 				}
 				
 				// output format [packet #][start byte offset][end byte offset]
-				System.out.println(String.format("[%d][%d][%d]", numPackets, numPackets * bufferSize, numPackets * bufferSize + packet.length));
+				System.out.println(String.format("[%d][%d][%d]", numPackets, numPackets * bufferSize, numPackets * bufferSize + fileBuffer.length));
 				
 				numPackets++;		//increment packet counter
-				ackNum++;
-				seqNum++;
 			}
 			
+			// for testing
+			System.out.println(Arrays.toString(headerBuffer));
+			
 			// send termination code
-			packet = "stop".getBytes();
-			DatagramPacket dgPacket = new DatagramPacket(packet, packet.length, address, receiverPort);
+			stopBuffer = "stop".getBytes();
+			DatagramPacket dgPacket = new DatagramPacket(stopBuffer, stopBuffer.length, address, receiverPort);
 			packetSocket.send(dgPacket);
 			
 			// close the open socket and the input stream
@@ -152,7 +166,7 @@ public class UDPClient {
 	// added for ack testing
 	public boolean receivedAck() {
 		
-		DatagramPacket acknowledged = new DatagramPacket(packet, packet.length);
+		DatagramPacket acknowledged = new DatagramPacket(ackBuffer, ackBuffer.length);
 		
 		try {
 			ackSocket.receive(acknowledged);
@@ -168,67 +182,52 @@ public class UDPClient {
 		return false;
 	}
 	
-	// review before testing *IF REVERTING BACK CHANGE TO BYTE[] INSTEAD OF VOID*
-	public byte[] createPacket(short chksum, int ackNum, int seqNum, byte[] data) {
+	
+	public byte[] createHeader() {
+		ByteBuffer buf = ByteBuffer.allocate(HEADER_SIZE);
 		
-		len += (short)(bufferSize);
-		
+		// create and add chksum header
+		byte[] chksumHeader = new byte[2];
+		ByteBuffer chksumBuf = ByteBuffer.wrap(chksumHeader);
 		chksumBuf.putShort(chksum);
-    	chksumBuf.rewind();
-    	//lenBuf.putShort(len);
-    	//lenBuf.rewind();
-    	ackNumBuf.putInt(ackNum);
-    	ackNumBuf.rewind();
-    	seqNumBuf.putInt(seqNum);
-    	seqNumBuf.rewind();
-    	
-    	ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    	
-    	/**
-    	for(int i = 0; i < len+bufferSize; i++) {
-    		if(i <= 1) {
-				packet[i] = chksumBytes[i];
-			//}else if(i > 1 && i <= 3) {
-				//lenBytes[i-2] = packetBuf[i];
-			}else if(i > 1 && i <= 5) {
-				packet[i] = ackNumBytes[i-2];
-			}else if(i > 5 && i <= 9) {
-				packet[i] = seqNumBytes[i-6];
-			}else {
-				packet[i] = data[i-10];
-			}
-    	}*/
-    	
-    	
-    	try {
-    		baos.write(chksumBuf.array());
-    		//baos.write(lenBuf.array());
-    		baos.write(ackNumBuf.array());
-    		baos.write(seqNumBuf.array());
-    		baos.write(data);
-    		
-    	}catch(IOException e) {
-    		e.printStackTrace();
-    	}
-    	
-    	return baos.toByteArray();
+		chksumBuf.rewind();
+		// create and add chksum header
+		byte[] lenHeader = new byte[2];
+		ByteBuffer lenBuf = ByteBuffer.wrap(lenHeader);
+		lenBuf.putShort(len);
+		lenBuf.rewind();
+		// create and add chksum header
+		byte[] acknoHeader = new byte[4];
+		ByteBuffer acknoBuf = ByteBuffer.wrap(acknoHeader);
+		acknoBuf.putInt(ackno);
+		acknoBuf.rewind();
+		// create and add chksum header
+		byte[] seqnoHeader = new byte[4];
+		ByteBuffer seqnoBuf = ByteBuffer.wrap(seqnoHeader);
+		seqnoBuf.putInt(seqno);
+		seqnoBuf.rewind();
+		
+		// add chksum header to full header
+		buf.put(chksumHeader);
+		// add len header to full header
+		buf.put(lenHeader);
+		// add ackno header to full header
+		buf.put(acknoHeader);
+		// add seqno header to full header
+		buf.put(seqnoHeader);
+		
+		
+		buf.rewind();
+		
+		return buf.array();
+		
 	}
 	
-	
-	
-	/**
-	public static void main(String[] args) {
+	public void addHeader() {
+		ByteBuffer buf = ByteBuffer.wrap(packetBuffer);
 		
-		// make sure that a file(parameter) has been passed
-		// if not, program terminates
-		if(args.length < 1) {
-			System.out.println("Please provide a file to send... TERMINATING");
-			System.exit(0);
-		}
-		
-		UDPClient client = new UDPClient();		// create client object
-		client.send(args[0]);					// begin process of sending file
-		
-	}*/
+		buf.put(headerBuffer);
+		buf.put(fileBuffer);
+	}
 	
 }
