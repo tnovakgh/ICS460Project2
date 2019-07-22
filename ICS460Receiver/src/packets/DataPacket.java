@@ -16,7 +16,7 @@ public class DataPacket {
 										  // The first sequence number in any connection is 1, so if you
 										  // have not received any packets yet, you should set ackno to 1.
 
-	private int seqNum ; 	//32-bit 4-byte. The first packet in a stream has a seqno of 1.
+	private int seqNum; 	//32-bit 4-byte. The first packet in a stream has a seqno of 1.
 										  // This protocol numbers packets.
 	private byte[] data; 	//0-500 bytes. Variable. Contains (len - 12) bytes of payload data for the
 										// application. To conserve packets, a sender should not send
@@ -32,10 +32,4 @@ public class DataPacket {
 		seqNum = 1;
 	}
 	
-	public DatagramPacket createPacket() {
-		DatagramPacket packet = new DatagramPacket();
-		
-		
-	}
-
 }
