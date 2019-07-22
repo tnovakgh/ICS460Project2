@@ -55,22 +55,28 @@ public class UDPClient {
 			// open socket used to send packets
 			// (socket to send doesn't need port as parameter)
 			this.packetSocket = new DatagramSocket();
+			
 			// open socket used to receive acknowledgments
 			// (socket to receive does need port as parameter)
 			this.ackSocket = new DatagramSocket(ACK_PORT);
+			
 			// specify host's IP address
 			this.address = InetAddress.getByName(address);
+			
 			// specify the port number for receiver to find packets in
 			this.receiverPort = portNum;
+			
 			// specify buffer/packet size
 			this.bufferSize = bufSize;
+			
 			// specify how long before client re-sends packet
 			this.timeoutLength = timeout;
+			
 			// specify percentage of packets to corrupt, delay, or drop
 			this.percentBadPackets = badPackets * 100;
+			
 			// set packet len
 			//this.len = (short)(12 + bufSize);
-			
 			this.packet = new byte[(len+bufSize)];
 			
 		}catch(IOException e) {
