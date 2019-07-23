@@ -1,12 +1,16 @@
+
 // sender 2 in git ** works properly **  **TEST COMMITT ***
+
 
 import java.io.*;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.Random; 
+import java.util.Random;
+import java.util.Timer; 
 
 public class UDPClient {
 	
@@ -31,6 +35,7 @@ public class UDPClient {
 	private int receiverPort;
 	private int bufferSize;
 	private int timeoutLength;
+	private int window = 1;
 	private float percentBadPackets;
 	private DatagramSocket packetSocket;
 	private DatagramSocket ackSocket;
@@ -41,15 +46,18 @@ public class UDPClient {
 	private byte[] stopBuffer;		// used for stop message
 	private byte[] ackBuffer;		// used for ack packet
 	private byte[] headerBuffer;	// used for header data
-	
 	private byte[] packetBuffer;	// used for entire packet
+	
+	private byte[] acknoHeader = new byte[2];		// used for ackno header
 	
 	
 	private short chksum = 0;
 	private short len = HEADER_SIZE;
 	private int ackno = 1;
+
 	private int seqno = 1;
 	private boolean dropped = true;
+
 	
 	// class constructor
 	public UDPClient(String address, int portNum, int bufSize, int timeout, float badPackets) {
@@ -91,18 +99,24 @@ public class UDPClient {
 			stopBuffer = new byte[bufferSize];		// initialize buffer array for stop message
 			ackBuffer = new byte[bufferSize];		// initialize buffer array for ack data
 			headerBuffer = new byte[HEADER_SIZE];	// initialize buffer array for header data
+			packetBuffer = new byte[headerBuffer.length + fileBuffer.length];	// initialize buffer array for full packet
 			
-			packetBuffer = new byte[headerBuffer.length + fileBuffer.length];	// add + HEADER_SIZE
-			
+			// set timeout for socket
+			//packetSocket.setSoTimeout(timeoutLength);
 			
 			// pre-test reads file from input stream and writes BUFFER_SIZE number of bytes to buffer to be sent in packets
 			while(iStream.read(fileBuffer) != -1) {
+				
+				len = (short) (HEADER_SIZE + fileBuffer.length);
+				boolean dropped = false;
+				boolean delayed = false;
 				
 				// decides if packet is corrupt, delayed, dropped, etc?
 				Random rng = new Random();
 				int chance = rng.nextInt((int)(100));
 				
 				// corrupt packet
+
 				if(chance < percentBadPackets && chance % 2 == 0) {
 					chksum = 1;		// 1 = bad packet
 				}
@@ -115,6 +129,7 @@ public class UDPClient {
 				else if(chance < percentBadPackets && chance % 4 == 0) {
 					dropped = false;
 					
+
 				}
 				
 				headerBuffer = createHeader();
@@ -123,15 +138,14 @@ public class UDPClient {
 				// for testing
 //				System.out.println(Arrays.toString(packetBuffer));
 				
+				// set boolean loop tester
+				//boolean socketTimedOut = true;
+				
 				// create new packet each iteration to be sent with(packet data, packet length, destination address, destination port)
 				DatagramPacket dgPacket = new DatagramPacket(packetBuffer, packetBuffer.length, address, receiverPort);
-				
-				/**		**this works, but trying to add and send header as well**
-				// create new packet each iteration to be sent with(packet data, packet length, destination address, destination port)
-				DatagramPacket dgPacket = new DatagramPacket(fileBuffer, fileBuffer.length, address, receiverPort);
-				*/
-				
+					
 				// send packet via open socket
+
 				if (dropped) {
 					packetSocket.send(dgPacket);
 					System.out.println(String.format("[%s][%d][%d][%d]","SENDing", numPackets, numPackets * bufferSize, numPackets * bufferSize + fileBuffer.length));
@@ -145,6 +159,7 @@ public class UDPClient {
 				while (receivedAck() == false) { 
 					packetSocket.send(dgPacket);
 					System.out.println("ReSend");
+
 				}
 				
 				System.out.println("ack received, packet successfully sent" + "\n");
@@ -194,6 +209,9 @@ public class UDPClient {
 			ackSocket.setSoTimeout(timeoutLength);
 			ackSocket.receive(acknowledged);
 			
+			segmentAckPacketArray(acknowledged);
+			System.out.println(Arrays.toString(acknoHeader));
+			
 			if(new String(acknowledged.getData(), 0, acknowledged.getLength()).trim().equals("ack")){
 				return true;			// negates loop's pre-test condition
 			}
@@ -205,6 +223,11 @@ public class UDPClient {
 		return false;
 	}
 	
+	public void segmentAckPacketArray(DatagramPacket packet) {
+		byte[] buffer = packet.getData();
+		acknoHeader = Arrays.copyOfRange(buffer, 4, 8);
+		
+	}
 	
 	public byte[] createHeader() {
 		ByteBuffer buf = ByteBuffer.allocate(HEADER_SIZE);
