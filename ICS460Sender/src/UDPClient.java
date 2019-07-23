@@ -49,6 +49,7 @@ public class UDPClient {
 	private short len = HEADER_SIZE;
 	private int ackno = 1;
 	private int seqno = 1;
+	private boolean dropped = true;
 	
 	// class constructor
 	public UDPClient(String address, int portNum, int bufSize, int timeout, float badPackets) {
@@ -103,14 +104,16 @@ public class UDPClient {
 				
 				// corrupt packet
 				if(chance < percentBadPackets && chance % 2 == 0) {
-					//chksum = 1;		// 1 = bad packet
+					chksum = 1;		// 1 = bad packet
 				}
 				// drop packet
 				else if(chance < percentBadPackets && chance % 3 == 0) {
-					//continue;	// jump to next iteration of loop. !may need to move!
+					//timeout section
+//					Thread.sleep((long)timeoutLength);
 				}
 				// delay packet
 				else if(chance < percentBadPackets && chance % 4 == 0) {
+					dropped = false;
 					
 				}
 				
@@ -118,7 +121,7 @@ public class UDPClient {
 				
 				addHeader();
 				// for testing
-				System.out.println(Arrays.toString(packetBuffer));
+//				System.out.println(Arrays.toString(packetBuffer));
 				
 				// create new packet each iteration to be sent with(packet data, packet length, destination address, destination port)
 				DatagramPacket dgPacket = new DatagramPacket(packetBuffer, packetBuffer.length, address, receiverPort);
@@ -129,21 +132,40 @@ public class UDPClient {
 				*/
 				
 				// send packet via open socket
-				packetSocket.send(dgPacket);
-				
+				if (dropped) {
+					packetSocket.send(dgPacket);
+					System.out.println(String.format("[%s][%d][%d][%d]","SENDing", numPackets, numPackets * bufferSize, numPackets * bufferSize + fileBuffer.length));
+
+				}
+				dropped = true;
 				// added for ack testing
-				if(receivedAck()) {
-					System.out.println("ack received, packet successfully sent");
+				
+				
+				
+				while (receivedAck() == false) { 
+					packetSocket.send(dgPacket);
+					System.out.println("ReSend");
 				}
 				
+				System.out.println("ack received, packet successfully sent" + "\n");
+
+				
+				
+//				if(receivedAck()) {
+//					System.out.println("ack received, packet successfully sent");
+//				} else {
+//					packetSocket.send(dgPacket);
+//					System.out.println("ReSend");
+//				}
+				
 				// output format [packet #][start byte offset][end byte offset]
-				System.out.println(String.format("[%d][%d][%d]", numPackets, numPackets * bufferSize, numPackets * bufferSize + fileBuffer.length));
+//				System.out.println(String.format("[%d][%d][%d]", numPackets, numPackets * bufferSize, numPackets * bufferSize + fileBuffer.length) + "\n");
 				
 				numPackets++;		//increment packet counter
 			}
 			
 			// for testing
-			System.out.println(Arrays.toString(headerBuffer));
+			System.out.println(Arrays.toString(headerBuffer) + "\n");
 			
 			// send termination code
 			stopBuffer = "stop".getBytes();
@@ -169,6 +191,7 @@ public class UDPClient {
 		DatagramPacket acknowledged = new DatagramPacket(ackBuffer, ackBuffer.length);
 		
 		try {
+			ackSocket.setSoTimeout(timeoutLength);
 			ackSocket.receive(acknowledged);
 			
 			if(new String(acknowledged.getData(), 0, acknowledged.getLength()).trim().equals("ack")){

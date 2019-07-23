@@ -27,6 +27,7 @@ public class UDPServer {
 	
 	// added for ack testing
 	private InetAddress address;
+	private boolean goodPacket = true;
 	
 	// class constructor
 	public UDPServer(String address, int portNum, float badPackets) {
@@ -69,13 +70,26 @@ public class UDPServer {
 				DatagramPacket dgPacket = new DatagramPacket(buf, buf.length);
 				// receive incoming packet
 				packetSocket.receive(dgPacket);
+				byte[] test = dgPacket.getData();
 				
+				System.out.println(test[1]);
+				
+				
+				
+				
+				
+				if (test[1] == 1) {    					//This is a big issue here
+					goodPacket = false;
+				}
 				// test output
-				System.out.println(Arrays.toString(dgPacket.getData()));
+//				System.out.println(Arrays.toString(dgPacket.getData()));
 				
 				// added for ack testing
 				// acknowledge that packet has been received
-				acknowledge();
+				if (goodPacket) {
+					acknowledge();
+
+				}
 				
 				// check if termination code has been received
 				// if so, negate loop's pre-test condition
@@ -88,7 +102,7 @@ public class UDPServer {
 				segmentPacketArray(dgPacket);
 				
 				System.out.println(Arrays.toString(header));
-				System.out.println(Arrays.toString(fileData));
+//				System.out.println(Arrays.toString(fileData));
 				
 				// implement when ready
 				//byteOStream.write(trimData(dgPacket));
