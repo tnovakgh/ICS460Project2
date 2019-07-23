@@ -135,16 +135,26 @@ public class UDPClient {
 				if (dropped) {
 					packetSocket.send(dgPacket);
 					System.out.println(String.format("[%s][%d][%d][%d]","SENDing", numPackets, numPackets * bufferSize, numPackets * bufferSize + fileBuffer.length));
+					System.out.println("header buffer - " + Arrays.toString(headerBuffer));
 
 				}
 				dropped = true;
 				// added for ack testing
 				
 				
-				
+				//This is the response for when no acknowledgement is received.  We are changing the ch
 				while (receivedAck() == false) { 
+//					byte[] data = headerBuffer;
+					packetBuffer[1] = 0;
+					chksum = 0;
+					DatagramPacket dgPacket1 = new DatagramPacket(packetBuffer, packetBuffer.length, address, receiverPort);
+
+//					dgPacket.setData(data);
 					packetSocket.send(dgPacket);
-					System.out.println("ReSend");
+					System.out.println(String.format("[%s][%d][%d][%d]","ReSend", numPackets, numPackets * bufferSize, numPackets * bufferSize + fileBuffer.length));
+					System.out.println("header buffer - " + Arrays.toString(packetBuffer));
+//					System.out.println("dgPacket data" + dgPacket.getDa);
+
 				}
 				
 				System.out.println("ack received, packet successfully sent" + "\n");
@@ -165,7 +175,7 @@ public class UDPClient {
 			}
 			
 			// for testing
-			System.out.println(Arrays.toString(headerBuffer) + "\n");
+			System.out.println("packetBuffer: " + Arrays.toString(packetBuffer) + "\n");
 			
 			// send termination code
 			stopBuffer = "stop".getBytes();
@@ -199,7 +209,7 @@ public class UDPClient {
 			}
 			
 		}catch(IOException e) {
-			e.printStackTrace();
+//			e.printStackTrace();
 		}
 		
 		return false;
@@ -213,6 +223,8 @@ public class UDPClient {
 		byte[] chksumHeader = new byte[2];
 		ByteBuffer chksumBuf = ByteBuffer.wrap(chksumHeader);
 		chksumBuf.putShort(chksum);
+//		chksumBuf.putShort((short)1);
+
 		chksumBuf.rewind();
 		// create and add chksum header
 		byte[] lenHeader = new byte[2];

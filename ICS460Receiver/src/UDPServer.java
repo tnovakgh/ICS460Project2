@@ -72,7 +72,8 @@ public class UDPServer {
 				packetSocket.receive(dgPacket);
 				byte[] test = dgPacket.getData();
 				
-				System.out.println(test[1]);
+				System.out.println("test[1] " + test[1]);
+				System.out.println("datacoming in " + Arrays.toString(test) +"\n");
 				
 				
 				
@@ -88,32 +89,36 @@ public class UDPServer {
 				// acknowledge that packet has been received
 				if (goodPacket) {
 					acknowledge();
-
+					
+					// appends packet's data to output stream
+					byteOStream.write(fileData);
+					
+					numPackets++;						// increments packet counter
+					
+					// check if termination code has been received
+					// if so, negate loop's pre-test condition
+					// (converts data to String, checks if equal to termination code)
+					if(new String(dgPacket.getData(), 0, dgPacket.getLength()).trim().equals("stop")){
+						running = false;			// negates loop's pre-test condition
+					}
 				}
+				goodPacket = true;
 				
-				// check if termination code has been received
-				// if so, negate loop's pre-test condition
-				// (converts data to String, checks if equal to termination code)
-				if(new String(dgPacket.getData(), 0, dgPacket.getLength()).trim().equals("stop")){
-					running = false;			// negates loop's pre-test condition
-				}
 				
 				// packet trimming happens here
 				segmentPacketArray(dgPacket);
 				
-				System.out.println(Arrays.toString(header));
-//				System.out.println(Arrays.toString(fileData));
+				System.out.println("This is the header" + Arrays.toString(header));
+//				System.out.println("This is the file data" + Arrays.toString(fileData));
 				
 				// implement when ready
 				//byteOStream.write(trimData(dgPacket));
 				
-				// appends packet's data to output stream
-				byteOStream.write(fileData);
+			
 				
 				// output format [packet #][start byte offset][end byte offset]
-				System.out.println(String.format("[%d][%d][%d]", numPackets, numPackets * BUFFER_SIZE, numPackets * BUFFER_SIZE + fileData.length));
+				System.out.println(String.format("[%d][%d][%d]", numPackets, numPackets * BUFFER_SIZE, numPackets * BUFFER_SIZE + fileData.length) + "possible end\n");
 				
-				numPackets++;						// increments packet counter
 				
 				buf = new byte[BUFFER_SIZE + HEADER_SIZE];		// clears buffer
 				
@@ -164,7 +169,7 @@ public class UDPServer {
 		try {
 			DatagramPacket acknowledge = new DatagramPacket(ACK, ACK.length, address, ACK_PORT);
 			ackSocket.send(acknowledge);
-			System.out.println("ack sent back to client");
+			System.out.println("ack sent back to client\n");
 		}catch(IOException e) {
 			e.printStackTrace();
 		}
