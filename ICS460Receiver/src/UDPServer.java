@@ -1,20 +1,30 @@
-// receiver 2 in git ** works properly **
+// receiver 2 in my projects
 
 import java.io.*;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 public class UDPServer {
+	
+	private final String RECV = "RECV";
+	private final String DUPL = "DUPL";
+	private final String CRPT = "CRPT";
+	private final String SEQ_ERR = "!Seq";
+	private final String ACKKNOWLEDGE = "ACK";
+	private final String SENT = "SENT";
+	private final String ERR = "ERR";
+	private final String DROP = "DROP";
+	private final String TIMEOUT = "TimeOut";
+	private final String SEND_MESSAGE = "SENDing";
 	
 	// instantiate constants
 	private final int ACK_PORT = 9587;
 	private final int BUFFER_SIZE = 100;
 	private final int HEADER_SIZE = 12;
-	
-	// added for ack testing
-	private final byte[] ACK = "ack".getBytes();
+	private final int ACK_SIZE = 8;
 	
 	// declare instance variables
 	private byte[] buf;
@@ -24,6 +34,13 @@ public class UDPServer {
 	private DatagramSocket ackSocket;
 	private byte[] header;
 	private byte[] fileData;
+	private byte[] acknoHeader = new byte[2];		// used for ackno header
+	private byte[] ackPacket;		// used for ack packet
+	
+	
+	private short chksum = 0;
+	private short len = ACK_SIZE;
+	private int ackno = 1;
 	
 	// added for ack testing
 	private InetAddress address;
@@ -60,6 +77,7 @@ public class UDPServer {
 		buf = new byte[BUFFER_SIZE + HEADER_SIZE];		// initialize buffer array for incoming data to be held
 		header = new byte[HEADER_SIZE];		// initialize buffer array for header data
 		fileData = new byte[BUFFER_SIZE];	// initialize buffer array for file data
+		ackPacket = new byte[ACK_SIZE];
 		
 		// pre-test continues until termination code has been received
 		while(running) {
@@ -76,6 +94,8 @@ public class UDPServer {
 				// added for ack testing
 				// acknowledge that packet has been received
 				acknowledge();
+				// increment ackno
+				ackno++;
 				
 				// check if termination code has been received
 				// if so, negate loop's pre-test condition
@@ -87,8 +107,11 @@ public class UDPServer {
 				// packet trimming happens here
 				segmentPacketArray(dgPacket);
 				
+				// for testing purposes
 				System.out.println(Arrays.toString(header));
-				System.out.println(Arrays.toString(fileData));
+				//System.out.println(Arrays.toString(fileData));
+				System.out.println(Arrays.toString(acknoHeader));
+				System.out.println(Arrays.toString(ackPacket));
 				
 				// implement when ready
 				//byteOStream.write(trimData(dgPacket));
@@ -148,7 +171,8 @@ public class UDPServer {
 	public void acknowledge() {
 		
 		try {
-			DatagramPacket acknowledge = new DatagramPacket(ACK, ACK.length, address, ACK_PORT);
+			createAckPacket();
+			DatagramPacket acknowledge = new DatagramPacket(ackPacket, ackPacket.length, address, ACK_PORT);
 			ackSocket.send(acknowledge);
 			System.out.println("ack sent back to client");
 		}catch(IOException e) {
@@ -157,10 +181,40 @@ public class UDPServer {
 		
 	}
 	
+	public void createAckPacket() {
+		ByteBuffer buf = ByteBuffer.wrap(ackPacket);
+		
+		// create and add chksum header
+		byte[] chksumHeader = new byte[2];
+		ByteBuffer chksumBuf = ByteBuffer.wrap(chksumHeader);
+		chksumBuf.putShort(chksum);
+		chksumBuf.rewind();
+		// create and add len header
+		byte[] lenHeader = new byte[2];
+		ByteBuffer lenBuf = ByteBuffer.wrap(lenHeader);
+		lenBuf.putShort(len);
+		lenBuf.rewind();
+		// create and add ackno header
+		byte[] acknoHeader = new byte[4];
+		ByteBuffer acknoBuf = ByteBuffer.wrap(acknoHeader);
+		acknoBuf.putInt(ackno);
+		acknoBuf.rewind();
+		
+		// add chksum header to full header
+		buf.put(chksumHeader);
+		// add len header to full header
+		buf.put(lenHeader);
+		// add ackno header to full header
+		buf.put(acknoHeader);
+		
+		buf.rewind();
+		
+	}
 	
 	public void segmentPacketArray(DatagramPacket packet) {
 		byte[] buffer = packet.getData();
 		header = Arrays.copyOfRange(buffer, 0, HEADER_SIZE);
+		acknoHeader = Arrays.copyOfRange(buffer, 4, 8);
 		fileData = Arrays.copyOfRange(buffer, HEADER_SIZE, buffer.length);
 		
 	}
@@ -238,7 +292,7 @@ public class UDPServer {
 		}catch(IOException e) {
 			e.printStackTrace();
 		}
-		test
+		
 	}*/
 	
 }
