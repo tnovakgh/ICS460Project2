@@ -1,4 +1,6 @@
-// sender 2 in my projects **added as test**
+
+// sender 2 in git ** works properly **  **TEST COMMITT ***
+
 
 import java.io.*;
 import java.net.DatagramPacket;
@@ -52,7 +54,10 @@ public class UDPClient {
 	private short chksum = 0;
 	private short len = HEADER_SIZE;
 	private int ackno = 1;
-	private int seqno = 0;
+
+	private int seqno = 1;
+	private boolean dropped = true;
+
 	
 	// class constructor
 	public UDPClient(String address, int portNum, int bufSize, int timeout, float badPackets) {
@@ -111,23 +116,27 @@ public class UDPClient {
 				int chance = rng.nextInt((int)(100));
 				
 				// corrupt packet
-				if(chance < percentBadPackets / 3) {
-					//chksum = 1;		// 1 = bad packet
+
+				if(chance < percentBadPackets && chance % 2 == 0) {
+					chksum = 1;		// 1 = bad packet
 				}
 				// drop packet
 				else if(chance < percentBadPackets && chance % 3 == 0) {
-					//dropped = true;	// set drop condition
+					//timeout section
+//					Thread.sleep((long)timeoutLength);
 				}
 				// delay packet
 				else if(chance < percentBadPackets && chance % 4 == 0) {
-					//delayed = true;	// set delayed condition
+					dropped = false;
+					
+
 				}
 				
 				headerBuffer = createHeader();
 				
 				addHeader();
 				// for testing
-				System.out.println(Arrays.toString(packetBuffer));
+//				System.out.println(Arrays.toString(packetBuffer));
 				
 				// set boolean loop tester
 				//boolean socketTimedOut = true;
@@ -136,21 +145,42 @@ public class UDPClient {
 				DatagramPacket dgPacket = new DatagramPacket(packetBuffer, packetBuffer.length, address, receiverPort);
 					
 				// send packet via open socket
-				packetSocket.send(dgPacket);
-						
-				// if ack comes back in time
-				if(receivedAck()) {
-					System.out.println("ack received, packet successfully sent");
+
+				if (dropped) {
+					packetSocket.send(dgPacket);
+					System.out.println(String.format("[%s][%d][%d][%d]","SENDing", numPackets, numPackets * bufferSize, numPackets * bufferSize + fileBuffer.length));
+
+				}
+				dropped = true;
+				// added for ack testing
+				
+				
+				
+				while (receivedAck() == false) { 
+					packetSocket.send(dgPacket);
+					System.out.println("ReSend");
+
 				}
 				
+				System.out.println("ack received, packet successfully sent" + "\n");
+
+				
+				
+//				if(receivedAck()) {
+//					System.out.println("ack received, packet successfully sent");
+//				} else {
+//					packetSocket.send(dgPacket);
+//					System.out.println("ReSend");
+//				}
+				
 				// output format [packet #][start byte offset][end byte offset]
-				System.out.println(String.format("[%d][%d][%d]", numPackets, numPackets * bufferSize, numPackets * bufferSize + fileBuffer.length));
+//				System.out.println(String.format("[%d][%d][%d]", numPackets, numPackets * bufferSize, numPackets * bufferSize + fileBuffer.length) + "\n");
 				
 				numPackets++;		//increment packet counter
 			}
 			
 			// for testing
-			System.out.println(Arrays.toString(headerBuffer));
+			System.out.println(Arrays.toString(headerBuffer) + "\n");
 			
 			// send termination code
 			stopBuffer = "stop".getBytes();
@@ -176,6 +206,7 @@ public class UDPClient {
 		DatagramPacket acknowledged = new DatagramPacket(ackBuffer, ackBuffer.length);
 		
 		try {
+			ackSocket.setSoTimeout(timeoutLength);
 			ackSocket.receive(acknowledged);
 			
 			segmentAckPacketArray(acknowledged);
