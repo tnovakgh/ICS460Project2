@@ -191,6 +191,12 @@ public class UDPServer {
 
 					}
 				}
+//<<<<<<< HEAD
+				goodPacket = true;
+//=======
+
+//>>>>>>> branch 'BrentTest' of https://github.com/tnovakgh/ICS460Project2.git
+				
 				
 				goodPacket = true;
 
@@ -307,6 +313,35 @@ public class UDPServer {
 		
 	}
 	
+	public void createAckPacket() {
+		ByteBuffer buf = ByteBuffer.wrap(ackPacket);
+		
+		// create and add chksum header
+		byte[] chksumHeader = new byte[2];
+		ByteBuffer chksumBuf = ByteBuffer.wrap(chksumHeader);
+		chksumBuf.putShort(chksum);
+		chksumBuf.rewind();
+		// create and add len header
+		byte[] lenHeader = new byte[2];
+		ByteBuffer lenBuf = ByteBuffer.wrap(lenHeader);
+		lenBuf.putShort(len);
+		lenBuf.rewind();
+		// create and add ackno header
+		byte[] acknoHeader = new byte[4];
+		ByteBuffer acknoBuf = ByteBuffer.wrap(acknoHeader);
+		acknoBuf.putInt(ackno);
+		acknoBuf.rewind();
+		
+		// add chksum header to full header
+		buf.put(chksumHeader);
+		// add len header to full header
+		buf.put(lenHeader);
+		// add ackno header to full header
+		buf.put(acknoHeader);
+		
+		buf.rewind();
+		
+	}
 	
 	
 	

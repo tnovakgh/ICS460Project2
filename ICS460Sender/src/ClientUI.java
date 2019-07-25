@@ -29,7 +29,7 @@ public class ClientUI {
     	}
     	
     	UDPClient client = new UDPClient(RECEIVER_ADDRESS, RECEIVER_PORT, PACKET_SIZE, TIMEOUT, PERCENTAGE);
-    	client.send(args[0]);					// begin process of sending file
+    	client.sendFile(args[0]);					// begin process of sending file
 		
 	}
 
