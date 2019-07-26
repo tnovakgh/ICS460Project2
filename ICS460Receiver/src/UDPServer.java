@@ -191,11 +191,9 @@ public class UDPServer {
 
 					}
 				}
-//<<<<<<< HEAD
+				
 				goodPacket = true;
-//=======
 
-//>>>>>>> branch 'BrentTest' of https://github.com/tnovakgh/ICS460Project2.git
 				
 				
 				goodPacket = true;
