@@ -141,7 +141,8 @@ public class UDPClient {
 				
 				// send packet via open socket //I think this the best solution to stop a dropped packet
 				if (condition != DROP) { 
-					packetSocket.send(dgPacketWithCondition); //This could be the best place to put the error chance but we need to know what the error is too
+//					packetSocket.send(dgPacketWithCondition); //This could be the best place to put the error chance but we need to know what the error is too
+					packetSocket.send(dgPacket);
 					
 //					packetSocket.send(dgPacket);
 					
@@ -167,7 +168,7 @@ public class UDPClient {
 					
 					//Send non dropped packets
 					if (condition != DROP) { 
-						packetSocket.send(dgPacketResendWithCondition); //This could be the best place to put the error chance but we need to know what the error is too
+					//	packetSocket.send(dgPacketResendWithCondition); //This could be the best place to put the error chance but we need to know what the error is too
 					}
 					
 					//Creating array to show header
@@ -237,6 +238,7 @@ public class UDPClient {
 		//creates random number
 		Random rng = new Random();
 		int chance = rng.nextInt((int)(100));
+		System.out.println("Chance is: " + chance);
 		
 		
 		int badPackets = (int) (percentBadPackets * 100);
