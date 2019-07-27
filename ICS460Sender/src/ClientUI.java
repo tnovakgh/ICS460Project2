@@ -19,7 +19,7 @@ public class ClientUI {
     					   "\ntimeout(" + TIMEOUT_KEY + "): " + TIMEOUT/1000 + "s" + 
     					   "\npercentage(" + PERCENTAGE_KEY + "): " + PERCENTAGE*100 + "%" +
     					   "\nIP Address: " + RECEIVER_ADDRESS +
-    					   "\nPort #: " + RECEIVER_PORT);
+    					   "\nPort #: " + RECEIVER_PORT + "\n");
     	
     	// make sure that a file(parameter) has been passed
     	// if not, program terminates
