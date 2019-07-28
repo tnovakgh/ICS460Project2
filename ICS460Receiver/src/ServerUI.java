@@ -11,7 +11,7 @@ public class ServerUI {
 		// just to test to make sure arguments are being passed through cmd correctly
     	System.out.println("\npercentage(" + PERCENTAGE_KEY + "): " + PERCENTAGE +
     					   "\nIP Address: " + RECEIVER_ADDRESS +
-    					   "\nPort #: " + RECEIVER_PORT);
+    					   "\nPort #: " + RECEIVER_PORT + "\n");
     	
     	// create UDPServer object to open socket(port)
     	new UDPServer(RECEIVER_ADDRESS, RECEIVER_PORT, PERCENTAGE).receive();
