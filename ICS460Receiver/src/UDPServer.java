@@ -1,3 +1,5 @@
+// receiver 2 in my projects
+
 import java.io.*;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -6,6 +8,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Random;
+
 /**
  * Receives datagram packets from a sender using UDP stop and wait protocol.
  * Involves sending Acknowledments back to sender so the sender can send next
@@ -19,13 +22,17 @@ public class UDPServer {
 	private final String RECV = "RECV";
 	private final String DUPL = "DUPL";
 	private final String CRPT = "CRPT";
+	private final String SEQ_ERR = "!Seq";//WONT BE USED
+	private final String ACKKNOWLEDGE = "ACK";
 	private final String SENT = "SENT";
 	private final String ERR = "ERR";
 	private final String DROP = "DROP";
+	private final String TIMEOUT = "TimeOut";//Server cant timeout.  Doesnt Make sense
+	private final String SEND_MESSAGE = "SENDing";
 	
 	// instantiate constants
 	private final int ACK_PORT = 9587;
-	private final int BUFFER_SIZE = 100;
+	private final int BUFFER_SIZE = 1000;
 	private final int HEADER_SIZE = 12;
 	private final int ACK_SIZE = 8;
 	
@@ -43,13 +50,13 @@ public class UDPServer {
 	private String ackPacketCondition = SENT;
 	private float badPackets;
 
-	
-	//private short chksum = 0;
+	private short chksum = 0;
 	private short len = ACK_SIZE;
-	private int ackno = 1;
+	private int ackno = 0;
 	private int seqno = 0;
 	private boolean isDuplicate;
 	private int currentWrite = -1;
+	private boolean hasBeenSent = false;
 	
 	// added for ack testing
 	private InetAddress address;
@@ -69,18 +76,20 @@ public class UDPServer {
 			// (socket to receive does need port as parameter)
 			this.packetSocket = new DatagramSocket(portNum);
 			
-			// open socket used to send acknowledgments
+			// open socket used to receive acknowledgments\             //This says receive but I think its suppposed to be send
+			// (socket to send doesn't need port as parameter)
 			this.ackSocket = new DatagramSocket();
 			
 			// specify host's IP address
 			this.address = InetAddress.getByName(address);
 			
+			// specify the port number for receiver to find packets in
+			this.receiverPort = portNum;
+			
 			this.badPackets = badPackets;
 			
 		}catch(IOException e) {
-			
 			e.printStackTrace();
-			
 		}
 	}
 	
@@ -96,6 +105,7 @@ public class UDPServer {
 		// open byte output stream to allow file to be compiled when received
 		ByteArrayOutputStream byteOStream = new ByteArrayOutputStream();
 		
+		// add + HEADER_SIZE when ready
 		buf = new byte[BUFFER_SIZE + HEADER_SIZE];		// initialize buffer array for incoming data to be held
 		header = new byte[HEADER_SIZE];		// initialize buffer array for header data
 		fileData = new byte[BUFFER_SIZE];	// initialize buffer array for file data
@@ -134,51 +144,38 @@ public class UDPServer {
 				//Testing if packet is corrupt //This comes last because Corrupt files dont care if there is a duplicate because seqno could be affected
 				//Testing if packet is a duplicate
 				//Setting Ackno to Next Packet needed regardless of duplicate //no need to reset seqno because we update it when we receive our packet. Not necessary to keep value
-				if (chksum == 1) {   
-					
+				if (chksum == 1) {    					
 					//goodPacket = false;
 					receivedPacketCondition = CRPT;
-					
-					// test for duplicate ack
 					if (tempAckno == ackno) {
-						
 						isDuplicate = true;
 						System.out.println(DUPL + " " + timeReceived + " " + seqno + " " + receivedPacketCondition);
-						
-					// if not a duplicate
+
 					} else {
-						
 						isDuplicate = false;
+						hasBeenSent = false;
 
 						System.out.println(RECV + " " + timeReceived + " " + seqno + " " + receivedPacketCondition);
-						
 					}
-					
-					// set ackno to next ackno
 					this.ackno = tempAckno;
 
 				} else {
-					
 					receivedPacketCondition = RECV;
 					
-					// test for duplicate ack
 					if (tempAckno == ackno) {
-						
 						isDuplicate = true;
 
 						//receivedPacketCondition = DUPL;
 						System.out.println(DUPL + " " + timeReceived + " " + seqno + " " + receivedPacketCondition);
 
 					} else {
-						
 						isDuplicate = false;
+						hasBeenSent = false;
 
 						System.out.println(RECV + " " + timeReceived + " " + seqno + " " + receivedPacketCondition);
 
 					}
-					
 					this.ackno = tempAckno;
-					
 					acknowledge();
 					
 					numPackets++;						// increments packet counter
@@ -187,14 +184,11 @@ public class UDPServer {
 					// if so, negate loop's pre-test condition
 					// (converts data to String, checks if equal to termination code)
 					if(new String(dgPacket.getData(), 0, dgPacket.getLength()).trim().equals("stop")){
-						
 						running = false;
 						byteOStream.close();// negates loop's pre-test condition
-						
 					}
 					// appends packet's data to output stream
 					if (seqno > currentWrite) {
-						
 						byteOStream.write(fileData);
 						currentWrite = seqno;
 
@@ -202,15 +196,14 @@ public class UDPServer {
 				}
 				
 				goodPacket = true;
-
-				goodPacket = true;
-
+				
+				// packet trimming happens here
+				segmentPacketArray(dgPacket);
+				
 				buf = new byte[BUFFER_SIZE + HEADER_SIZE];		// clears buffer
 				
 			}catch(IOException e) {
-				
 				e.printStackTrace();
-				
 			}
 		}
 		
@@ -218,15 +211,11 @@ public class UDPServer {
 		
 		// close socket and byte output stream
 		try {
-			
 			packetSocket.close();
 			ackSocket.close();
 			byteOStream.close();
-			
 		}catch(IOException e) {
-			
 			e.printStackTrace();
-			
 		}
 	
 	}
@@ -252,12 +241,9 @@ public class UDPServer {
 					
 			// close file output stream
 			oStream.close();
-					
 				
 		}catch(IOException e) {
-			
 			e.printStackTrace();
-			
 		}
 		
 	}
@@ -270,36 +256,27 @@ public class UDPServer {
 	public void acknowledge() {
 		
 		try {
-			
 			createAckPacket();
-			
 			DatagramPacket acknowledge = new DatagramPacket(ackPacket, ackPacket.length, address, ACK_PORT);
 			Date ackDateSent = new Date();
 
 			long ackSendTime = ackDateSent.getTime();
-			
 			if (ackPacketCondition != DROP) {
-				
 				ackSocket.send(acknowledge);
-				
 			}
 			
-			if (isDuplicate) {
-				
+			if (hasBeenSent) {
 				System.out.println("ReSend. ACK " + seqno + " " + ackSendTime + " " + ackPacketCondition);
 
 			} else {
-				
+				hasBeenSent = true;
 				System.out.println("SENDing ACK " + seqno + " " +ackSendTime + " " + ackPacketCondition);
 
 			}
-			
 			ackPacketCondition = SENT;
 		
 		}catch(IOException e) {
-			
 			e.printStackTrace();
-			
 		}
 		
 	}
@@ -346,7 +323,6 @@ public class UDPServer {
 	 * @param packet
 	 */
 	public void segmentPacketArray(DatagramPacket packet) {
-		
 		byte[] buffer = packet.getData();
 		header = Arrays.copyOfRange(buffer, 0, HEADER_SIZE);
 		acknoHeader = Arrays.copyOfRange(buffer, 4, 8);
@@ -377,14 +353,11 @@ public class UDPServer {
 	
 			ackPacketCondition = ERR;
 			return 1;
-			
 		}
 		// drop packet
 		else if(chance > 100 - badPacketsPercentage) {
-			
 			ackPacketCondition = DROP;
 			return 0;
-			
 		}
 		
 		return 0;
