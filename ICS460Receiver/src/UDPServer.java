@@ -1,5 +1,3 @@
-// receiver 2 in my projects
-
 import java.io.*;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
